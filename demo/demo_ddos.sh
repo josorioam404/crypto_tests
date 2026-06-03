@@ -49,8 +49,6 @@ echo ""
 echo -e "${RED}↑ Observa cómo el servidor backend colapsa bajo la carga e intenta devolver errores 5xx.↑${NC}"
 
 echo ""
-echo -e "${RED}↑ Observa cómo el servidor intenta procesar todo, elevando el uso de CPU/RAM o demorando mucho.↑${NC}"
-echo ""
 echo -e "${YELLOW}--- FASE 2: ATAQUE CON PROTECCIÓN ACTIVA ---${NC}"
 echo -e "Ahora ve a ${CYAN}gateway/nginx.conf${NC} y ${GREEN}DESCOMENTA${NC} (activa) las líneas de rate limiting:"
 echo -e "   ${GREEN}limit_req zone=api_general burst=20 nodelay;${NC}"
@@ -60,12 +58,26 @@ echo ""
 read -p "Presiona ENTER cuando la protección esté activada y NGINX recargado..."
 
 echo -e "\n${RED}🔥 Lanzando el MISMO ataque DoS contra el endpoint protegido...${NC}"
-ab -n 500 -c 100 -k https://localhost/api/pets/stats 2>&1 | tee /tmp/ab_protected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
+
+rm -f /tmp/demo_protected.log
+for i in {1..200}; do
+    curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_protected.log &
+done
+wait
+
+HTTP_200=$(grep -c "200" /tmp/demo_protected.log || true)
+HTTP_429=$(grep -c "429" /tmp/demo_protected.log || true)
+HTTP_5XX=$(grep -c -E "^5" /tmp/demo_protected.log || true)
 
 echo ""
+echo -e "   Peticiones Procesadas (HTTP 200 OK): ${GREEN}$HTTP_200${NC}"
+echo -e "   Peticiones Bloqueadas Rápidamente (HTTP 429): ${CYAN}$HTTP_429${NC}"
+echo -e "   Peticiones Fallidas por Sobrecarga (HTTP 502/504): ${RED}$HTTP_5XX${NC}"
+echo ""
+
 echo -e "${GREEN}✅ ¡Ataque Mitigado!${NC}"
-echo -e "De los 500 requests, la inmensa mayoría fueron rechazados inmediatamente por NGINX."
-echo -e "Fíjate en el valor ${CYAN}'Non-2xx responses'${NC} de arriba. Esos son los bloqueos rápidos con código HTTP 429 (Too Many Requests)."
+echo -e "De los 200 requests, NGINX interceptó inmediatamente el exceso devolviendo HTTP 429."
+echo -e "El servidor interno jamás fue sobrecargado, por lo que desaparecieron los errores 5xx."
 echo ""
 echo -e "${CYAN}============================================================${NC}"
 echo -e "${CYAN}                    FIN DE LA DEMOSTRACIÓN                   ${NC}"
