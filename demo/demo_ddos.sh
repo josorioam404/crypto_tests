@@ -24,7 +24,7 @@ fi
 
 echo -e "${YELLOW}--- FASE 1: ATAQUE SIN PROTECCIÓN ---${NC}"
 echo -e "Asegúrate de que en ${CYAN}gateway/nginx.conf${NC} las líneas de ${GREEN}limit_req${NC} para /api/pets estén ${RED}COMENTADAS${NC}."
-echo -e "Ejecuta 'docker exec Adopti_gateway nginx -s reload' si acabas de guardar."
+echo -e "Ejecuta 'docker compose restart gateway' o 'docker restart Adopti_gateway' si acabas de guardar."
 echo ""
 read -p "Presiona ENTER cuando estés listo para lanzar el ataque sin protección..."
 
@@ -33,13 +33,13 @@ echo -e "${CYAN}   (Esto puede demorar unos segundos mientras el servidor sufre 
 
 rm -f /tmp/demo_unprotected.log
 for i in {1..200}; do
-    curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_unprotected.log &
+    curl -k -s --max-time 10 -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_unprotected.log &
 done
 wait
 
 HTTP_200=$(grep -c "200" /tmp/demo_unprotected.log || true)
 HTTP_429=$(grep -c "429" /tmp/demo_unprotected.log || true)
-HTTP_5XX=$(grep -c -E "^5" /tmp/demo_unprotected.log || true)
+HTTP_5XX=$(grep -c -E "^5|^000" /tmp/demo_unprotected.log || true)
 
 echo ""
 echo -e "   Peticiones Procesadas (HTTP 200 OK): ${GREEN}$HTTP_200${NC}"
@@ -53,7 +53,7 @@ echo -e "${YELLOW}--- FASE 2: ATAQUE CON PROTECCIÓN ACTIVA ---${NC}"
 echo -e "Ahora ve a ${CYAN}gateway/nginx.conf${NC} y ${GREEN}DESCOMENTA${NC} (activa) las líneas de rate limiting:"
 echo -e "   ${GREEN}limit_req zone=api_general burst=20 nodelay;${NC}"
 echo -e "   ${GREEN}limit_req_status 429;${NC}"
-echo -e "Luego, recarga el NGINX ejecutando: ${CYAN}docker exec Adopti_gateway nginx -s reload${NC}"
+echo -e "Luego, REINICIA el contenedor ejecutando: ${CYAN}docker restart Adopti_gateway${NC}"
 echo ""
 read -p "Presiona ENTER cuando la protección esté activada y NGINX recargado..."
 
@@ -61,13 +61,13 @@ echo -e "\n${RED}🔥 Lanzando el MISMO ataque DoS contra el endpoint protegido.
 
 rm -f /tmp/demo_protected.log
 for i in {1..200}; do
-    curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_protected.log &
+    curl -k -s --max-time 10 -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_protected.log &
 done
 wait
 
 HTTP_200=$(grep -c "200" /tmp/demo_protected.log || true)
 HTTP_429=$(grep -c "429" /tmp/demo_protected.log || true)
-HTTP_5XX=$(grep -c -E "^5" /tmp/demo_protected.log || true)
+HTTP_5XX=$(grep -c -E "^5|^000" /tmp/demo_protected.log || true)
 
 echo ""
 echo -e "   Peticiones Procesadas (HTTP 200 OK): ${GREEN}$HTTP_200${NC}"

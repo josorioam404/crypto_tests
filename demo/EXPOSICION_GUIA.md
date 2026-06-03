@@ -21,9 +21,9 @@ Esta guía detalla los pasos exactos que el expositor debe seguir en vivo para d
    # limit_req zone=api_general burst=20 nodelay;
    # limit_req_status 429;
    ```
-4. Abre la terminal, aplica el cambio y lanza el script:
+4. Abre la terminal, aplica el cambio reiniciando el contenedor y lanza el script:
    ```bash
-   docker exec Adopti_gateway nginx -s reload
+   docker restart Adopti_gateway
    cd adopti/crypto_tests/demo
    ./demo_ddos.sh
    ```
@@ -54,7 +54,7 @@ Dado que Adopti redirige forzosamente de HTTP a HTTPS, para demostrar la vulnera
        proxy_pass http://frontend:3000;         <-- AGREGAR
    }
    ```
-3. Guarda y recarga: `docker exec Adopti_reverse_proxy nginx -s reload`.
+3. Guarda y reinicia el contenedor: `docker restart Adopti_reverse_proxy`.
 4. **En Wireshark:** Inicia la captura seleccionando la interfaz de loopback (`lo` o `loopback`). Usa el filtro: `http.request.method == "POST"`.
 5. Ve a `http://localhost/login` (asegúrate de NO usar https://) e intenta hacer login con credenciales de prueba.
 6. **Explica al profesor:** En Wireshark, abre el paquete capturado. Expande "Hypertext Transfer Protocol" o "JSON payload". Muéstrale cómo la contraseña se lee claramente en la red.
@@ -67,7 +67,7 @@ Dado que Adopti redirige forzosamente de HTTP a HTTPS, para demostrar la vulnera
        # proxy_pass http://frontend:3000;
    }
    ```
-2. Guarda y recarga: `docker exec Adopti_reverse_proxy nginx -s reload`.
+2. Guarda y reinicia el contenedor: `docker restart Adopti_reverse_proxy`.
 3. **En Wireshark:** Limpia la captura actual y cambia el filtro a: `tls.handshake.type || tcp.port == 443`.
 4. Ve a `https://localhost/login` e intenta hacer login.
 5. **Explica al profesor:** Muestra los paquetes "Application Data" que viajan por el puerto 443. Al inspeccionarlos, solo verás bytes cifrados ("Encrypted Application Data"). Explícale que ahora la red usa AES-256-GCM y que es matemáticamente inviable para un atacante en la red WiFi robar la contraseña de Firebase.
