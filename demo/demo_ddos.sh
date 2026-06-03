@@ -16,10 +16,9 @@ echo -e "${CYAN}   🚀 DEMOSTRACIÓN RNF 2: DEFENSA CONTRA DoS (Rate Limiting) 
 echo -e "${CYAN}============================================================${NC}"
 echo ""
 
-# Verificar si 'ab' está instalado
-if ! command -v ab &> /dev/null; then
-    echo -e "${RED}Error: 'ab' (Apache Benchmark) no está instalado.${NC}"
-    echo "Instálalo usando: sudo apt-get install apache2-utils (Linux) o brew install httpd (Mac)"
+# Verificar si curl está instalado
+if ! command -v curl &> /dev/null; then
+    echo -e "${RED}Error: 'curl' no está instalado.${NC}"
     exit 1
 fi
 
@@ -29,9 +28,25 @@ echo -e "Ejecuta 'docker exec Adopti_gateway nginx -s reload' si acabas de guard
 echo ""
 read -p "Presiona ENTER cuando estés listo para lanzar el ataque sin protección..."
 
-echo -e "\n${RED}🔥 Lanzando ataque DoS (500 requests, 100 concurrentes) contra el endpoint de mascotas...${NC}"
-# Usamos -k (KeepAlive) para mayor impacto, y redirigimos la salida temporalmente para mostrar solo el final
-ab -n 500 -c 100 -k https://localhost/api/pets/stats 2>&1 | tee /tmp/ab_unprotected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
+echo -e "\n${RED}🔥 Lanzando ataque DoS (200 requests simultáneos) contra el endpoint de mascotas...${NC}"
+echo -e "${CYAN}   (Esto puede demorar unos segundos mientras el servidor sufre la carga)${NC}"
+
+rm -f /tmp/demo_unprotected.log
+for i in {1..200}; do
+    curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/api/pets/stats >> /tmp/demo_unprotected.log &
+done
+wait
+
+HTTP_200=$(grep -c "200" /tmp/demo_unprotected.log || true)
+HTTP_429=$(grep -c "429" /tmp/demo_unprotected.log || true)
+HTTP_5XX=$(grep -c -E "^5" /tmp/demo_unprotected.log || true)
+
+echo ""
+echo -e "   Peticiones Procesadas (HTTP 200 OK): ${GREEN}$HTTP_200${NC}"
+echo -e "   Peticiones Bloqueadas Rápidamente (HTTP 429): ${CYAN}$HTTP_429${NC}"
+echo -e "   Peticiones Fallidas por Sobrecarga (HTTP 502/504): ${RED}$HTTP_5XX${NC}"
+echo ""
+echo -e "${RED}↑ Observa cómo el servidor backend colapsa bajo la carga e intenta devolver errores 5xx.↑${NC}"
 
 echo ""
 echo -e "${RED}↑ Observa cómo el servidor intenta procesar todo, elevando el uso de CPU/RAM o demorando mucho.↑${NC}"
