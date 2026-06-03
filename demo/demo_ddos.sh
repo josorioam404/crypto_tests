@@ -24,28 +24,28 @@ if ! command -v ab &> /dev/null; then
 fi
 
 echo -e "${YELLOW}--- FASE 1: ATAQUE SIN PROTECCIÓN ---${NC}"
-echo -e "Asegúrate de que en ${CYAN}reverse-proxy/nginx.conf${NC} las líneas de ${GREEN}limit_req${NC} para /api/session estén ${RED}COMENTADAS${NC}."
-echo -e "Ejecuta 'docker exec Adopti_reverse_proxy nginx -s reload' si acabas de guardar."
+echo -e "Asegúrate de que en ${CYAN}gateway/nginx.conf${NC} las líneas de ${GREEN}limit_req${NC} para /api/pets estén ${RED}COMENTADAS${NC}."
+echo -e "Ejecuta 'docker exec Adopti_gateway nginx -s reload' si acabas de guardar."
 echo ""
 read -p "Presiona ENTER cuando estés listo para lanzar el ataque sin protección..."
 
-echo -e "\n${RED}🔥 Lanzando ataque DoS (500 requests, 100 concurrentes) contra el login...${NC}"
+echo -e "\n${RED}🔥 Lanzando ataque DoS (500 requests, 100 concurrentes) contra el endpoint de mascotas...${NC}"
 # Usamos -k (KeepAlive) para mayor impacto, y redirigimos la salida temporalmente para mostrar solo el final
-ab -n 500 -c 100 -k -p post_data.json -T "application/json" https://localhost/api/session 2>&1 | tee /tmp/ab_unprotected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
+ab -n 500 -c 100 -k https://localhost/api/pets/stats 2>&1 | tee /tmp/ab_unprotected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
 
 echo ""
 echo -e "${RED}↑ Observa cómo el servidor intenta procesar todo, elevando el uso de CPU/RAM o demorando mucho.↑${NC}"
 echo ""
 echo -e "${YELLOW}--- FASE 2: ATAQUE CON PROTECCIÓN ACTIVA ---${NC}"
-echo -e "Ahora ve a ${CYAN}reverse-proxy/nginx.conf${NC} y ${GREEN}DESCOMENTA${NC} (activa) las líneas de rate limiting:"
-echo -e "   ${GREEN}limit_req zone=auth_limit burst=10 nodelay;${NC}"
+echo -e "Ahora ve a ${CYAN}gateway/nginx.conf${NC} y ${GREEN}DESCOMENTA${NC} (activa) las líneas de rate limiting:"
+echo -e "   ${GREEN}limit_req zone=api_general burst=20 nodelay;${NC}"
 echo -e "   ${GREEN}limit_req_status 429;${NC}"
-echo -e "Luego, recarga el NGINX ejecutando: ${CYAN}docker exec Adopti_reverse_proxy nginx -s reload${NC}"
+echo -e "Luego, recarga el NGINX ejecutando: ${CYAN}docker exec Adopti_gateway nginx -s reload${NC}"
 echo ""
 read -p "Presiona ENTER cuando la protección esté activada y NGINX recargado..."
 
 echo -e "\n${RED}🔥 Lanzando el MISMO ataque DoS contra el endpoint protegido...${NC}"
-ab -n 500 -c 100 -k -p post_data.json -T "application/json" https://localhost/api/session 2>&1 | tee /tmp/ab_protected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
+ab -n 500 -c 100 -k https://localhost/api/pets/stats 2>&1 | tee /tmp/ab_protected.log | grep -E "Time taken for tests|Failed requests|Non-2xx responses|Requests per second"
 
 echo ""
 echo -e "${GREEN}✅ ¡Ataque Mitigado!${NC}"

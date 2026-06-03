@@ -11,24 +11,24 @@ Esta guía detalla los pasos exactos que el expositor debe seguir en vivo para d
 **Herramientas requeridas:**
 *   Tener el script `demo_ddos.sh` (ubicado en esta carpeta).
 *   Tener instalado Apache Benchmark (`sudo apt-get install apache2-utils` o `brew install httpd`).
-*   Tener acceso al archivo `reverse-proxy/nginx.conf`.
+*   Tener acceso al archivo `gateway/nginx.conf`.
 
 ### Paso a paso en vivo:
-1. Abre tu IDE y muestra el archivo `adopti/reverse-proxy/nginx.conf`.
-2. Dirígete a la sección `location /api/session {` (aprox. línea 121).
+1. Abre tu IDE y muestra el archivo `adopti/gateway/nginx.conf`.
+2. Dirígete a la sección `location /api/pets {` (aprox. línea 104).
 3. **Comenta** las dos líneas de rate limiting para simular el servidor vulnerable:
    ```nginx
-   # limit_req zone=auth_limit burst=10 nodelay;
+   # limit_req zone=api_general burst=20 nodelay;
    # limit_req_status 429;
    ```
 4. Abre la terminal, aplica el cambio y lanza el script:
    ```bash
-   docker exec Adopti_reverse_proxy nginx -s reload
+   docker exec Adopti_gateway nginx -s reload
    cd adopti/crypto_tests/demo
    ./demo_ddos.sh
    ```
-5. **Explica al profesor:** "Aquí estamos viendo un ataque directo con 500 peticiones concurrentes. Al no haber protección, nuestro servidor backend Node.js tiene que procesar cada conexión." El script mostrará que se demoró procesando.
-6. **Activa la protección:** Vuelve al IDE y **descomenta** las dos líneas en el `nginx.conf`.
+5. **Explica al profesor:** "Aquí estamos viendo un ataque directo con 500 peticiones concurrentes al endpoint de estadísticas de mascotas. Al no haber protección, nuestro microservicio en Python tiene que procesar y responder con HTTP 200 a cada conexión." El script mostrará 0 fallos.
+6. **Activa la protección:** Vuelve al IDE y **descomenta** las dos líneas en el `gateway/nginx.conf`.
 7. Presiona **ENTER** en la terminal donde está corriendo el script (esto volverá a disparar el ataque, pero NGINX ya tendrá los límites activos).
 8. **Conclusión:** Muestra en la terminal cómo la salida ahora indica un alto número de `Non-2xx responses`. Explica que NGINX interceptó y descartó el ataque devolviendo un rápido error HTTP 429, protegiendo así al servidor interno de caerse.
 
